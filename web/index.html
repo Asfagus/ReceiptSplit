@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#f7f4ed">
+    <title>Receipt Split</title>
+    <link rel="manifest" href="./manifest.webmanifest">
+    <link rel="stylesheet" href="./styles.css?v=1.2.1">
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js" defer></script>
+    <script src="./app.js?v=1.2.1" defer></script>
+  </head>
+  <body>
+    <main class="app-shell">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">Private receipt splitter</p>
+          <h1>Receipt Split</h1>
+          <p class="version-label" id="versionLabel">v1.2.1</p>
+        </div>
+        <button class="icon-button" id="installButton" type="button" title="Install app" hidden>
+          <span aria-hidden="true">+</span>
+        </button>
+      </header>
+
+      <section class="toolbar" aria-label="Receipt actions">
+        <label class="primary-action" for="receiptInput">
+          <span aria-hidden="true">Scan</span>
+          <input id="receiptInput" type="file" accept="image/*" capture="environment">
+        </label>
+        <button id="pasteTextButton" type="button">Paste text</button>
+        <button id="addItemButton" type="button">Add item</button>
+      </section>
+
+      <section class="status-strip" id="statusStrip" hidden>
+        <div class="progress-dot" aria-hidden="true"></div>
+        <span id="statusText"></span>
+      </section>
+
+      <section class="layout-grid">
+        <section class="panel participants-panel" aria-labelledby="participantsTitle">
+          <div class="section-head">
+            <h2 id="participantsTitle">People</h2>
+            <span id="peopleCount" class="pill">0</span>
+          </div>
+          <form id="participantForm" class="inline-form">
+            <input id="participantName" name="participantName" type="text" placeholder="Name" autocomplete="off">
+            <button type="submit" title="Add person">+</button>
+          </form>
+          <div id="participantsList" class="chip-list"></div>
+        </section>
+
+        <section class="panel items-panel" aria-labelledby="itemsTitle">
+          <div class="section-head">
+            <h2 id="itemsTitle">Items</h2>
+            <button id="clearItemsButton" class="text-button" type="button">Clear</button>
+          </div>
+          <div id="itemsList" class="items-list"></div>
+        </section>
+
+        <section class="panel totals-panel" aria-labelledby="totalsTitle">
+          <div class="section-head">
+            <h2 id="totalsTitle">Split</h2>
+            <button id="saveHistoryButton" class="text-button" type="button">Remember</button>
+          </div>
+          <div id="totalsList" class="totals-list"></div>
+        </section>
+      </section>
+    </main>
+
+    <dialog id="textDialog">
+      <form method="dialog" class="dialog-card">
+        <header>
+          <h2>Receipt text</h2>
+          <button value="cancel" class="icon-button" type="submit" title="Close">x</button>
+        </header>
+        <textarea id="receiptTextArea" rows="10" placeholder="Burger 12.99&#10;Fries 4.50&#10;Soda 2.75"></textarea>
+        <menu>
+          <button value="cancel" type="submit">Cancel</button>
+          <button id="parseTextButton" value="default" type="button">Parse</button>
+        </menu>
+      </form>
+    </dialog>
+
+    <dialog id="itemDialog">
+      <form method="dialog" class="dialog-card">
+        <header>
+          <h2>Add item</h2>
+          <button value="cancel" class="icon-button" type="submit" title="Close">x</button>
+        </header>
+        <label>
+          Item
+          <input id="manualItemName" type="text" autocomplete="off">
+        </label>
+        <label>
+          Price
+          <input id="manualItemPrice" type="number" min="0" step="0.01" inputmode="decimal">
+        </label>
+        <menu>
+          <button value="cancel" type="submit">Cancel</button>
+          <button id="saveManualItemButton" value="default" type="button">Add</button>
+        </menu>
+      </form>
+    </dialog>
+  </body>
+</html>

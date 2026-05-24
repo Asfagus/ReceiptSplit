@@ -1,0 +1,5 @@
+eng.traineddata
+*.traineddata
+server.*.txt
+.DS_Store
+Thumbs.db
