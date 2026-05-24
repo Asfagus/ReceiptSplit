@@ -1,4 +1,4 @@
-const APP_VERSION = "1.2.2";
+const APP_VERSION = "1.2.3";
 const STORAGE_KEY = "receipt-split-pwa-state-v1";
 
 const state = {
@@ -8,7 +8,12 @@ const state = {
 };
 
 const els = {
-  receiptInput: document.querySelector("#receiptInput"),
+  cameraButton: document.querySelector("#cameraButton"),
+  receiptUploadInput: document.querySelector("#receiptUploadInput"),
+  receiptCameraInput: document.querySelector("#receiptCameraInput"),
+  cameraDialog: document.querySelector("#cameraDialog"),
+  cameraPreview: document.querySelector("#cameraPreview"),
+  capturePhotoButton: document.querySelector("#capturePhotoButton"),
   pasteTextButton: document.querySelector("#pasteTextButton"),
   addItemButton: document.querySelector("#addItemButton"),
   clearItemsButton: document.querySelector("#clearItemsButton"),
@@ -34,6 +39,7 @@ const els = {
 };
 
 let installPrompt = null;
+let cameraStream = null;
 
 function uid() {
   return globalThis.crypto?.randomUUID
@@ -449,11 +455,78 @@ function renderImage(file, degrees, draw) {
   });
 }
 
-els.receiptInput.addEventListener("change", (event) => {
+function handleReceiptFile(event) {
   const file = event.target.files?.[0];
   if (file) scanImage(file);
   event.target.value = "";
+}
+
+function stopCamera() {
+  if (cameraStream) {
+    cameraStream.getTracks().forEach((track) => track.stop());
+    cameraStream = null;
+  }
+  els.cameraPreview.srcObject = null;
+}
+
+function openNativeCameraInput() {
+  els.receiptCameraInput.click();
+}
+
+async function openCamera() {
+  if (window.matchMedia("(pointer: coarse)").matches) {
+    openNativeCameraInput();
+    return;
+  }
+
+  if (!navigator.mediaDevices?.getUserMedia) {
+    openNativeCameraInput();
+    return;
+  }
+
+  try {
+    stopCamera();
+    cameraStream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: { ideal: "environment" } },
+      audio: false
+    });
+    els.cameraPreview.srcObject = cameraStream;
+    els.cameraDialog.showModal();
+  } catch {
+    openNativeCameraInput();
+  }
+}
+
+function captureFromCamera() {
+  const video = els.cameraPreview;
+  if (!video.videoWidth || !video.videoHeight) return;
+
+  const canvas = document.createElement("canvas");
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
+  canvas.getContext("2d").drawImage(video, 0, 0);
+
+  canvas.toBlob((blob) => {
+    stopCamera();
+    els.cameraDialog.close();
+    if (blob) scanImage(new File([blob], "receipt.jpg", { type: "image/jpeg" }));
+  }, "image/jpeg", 0.92);
+}
+
+els.cameraButton.addEventListener("click", () => {
+  openCamera();
 });
+
+els.capturePhotoButton.addEventListener("click", () => {
+  captureFromCamera();
+});
+
+els.cameraDialog.addEventListener("close", () => {
+  stopCamera();
+});
+
+els.receiptUploadInput.addEventListener("change", handleReceiptFile);
+els.receiptCameraInput.addEventListener("change", handleReceiptFile);
 
 els.participantForm.addEventListener("submit", (event) => {
   event.preventDefault();

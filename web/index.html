@@ -6,9 +6,9 @@
     <meta name="theme-color" content="#f7f4ed">
     <title>Receipt Split</title>
     <link rel="manifest" href="./manifest.webmanifest">
-    <link rel="stylesheet" href="./styles.css?v=1.2.2">
+    <link rel="stylesheet" href="./styles.css?v=1.2.3">
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js" defer></script>
-    <script src="./app.js?v=1.2.2" defer></script>
+    <script src="./app.js?v=1.2.3" defer></script>
   </head>
   <body>
     <main class="app-shell">
@@ -16,7 +16,7 @@
         <div>
           <p class="eyebrow">Private receipt splitter</p>
           <h1>Receipt Split</h1>
-          <p class="version-label" id="versionLabel">v1.2.2</p>
+          <p class="version-label" id="versionLabel">v1.2.3</p>
         </div>
         <button class="icon-button" id="installButton" type="button" title="Install app" hidden>
           <span aria-hidden="true">+</span>
@@ -24,10 +24,12 @@
       </header>
 
       <section class="toolbar" aria-label="Receipt actions">
-        <label class="primary-action" for="receiptInput">
-          <span aria-hidden="true">Scan</span>
-          <input id="receiptInput" type="file" accept="image/*" capture="environment">
+        <button id="cameraButton" type="button" class="primary-action">Camera</button>
+        <label class="toolbar-upload" for="receiptUploadInput">
+          Upload
+          <input id="receiptUploadInput" type="file" accept="image/*">
         </label>
+        <input id="receiptCameraInput" class="hidden-file-input" type="file" accept="image/*" capture="environment">
         <button id="pasteTextButton" type="button">Paste text</button>
         <button id="addItemButton" type="button">Add item</button>
       </section>
@@ -70,6 +72,20 @@
         </section>
       </section>
     </main>
+
+    <dialog id="cameraDialog">
+      <form method="dialog" class="dialog-card camera-card">
+        <header>
+          <h2>Take photo</h2>
+          <button value="cancel" class="icon-button" type="submit" title="Close">x</button>
+        </header>
+        <video id="cameraPreview" class="camera-preview" autoplay playsinline muted></video>
+        <menu>
+          <button value="cancel" type="submit">Cancel</button>
+          <button id="capturePhotoButton" type="button">Capture</button>
+        </menu>
+      </form>
+    </dialog>
 
     <dialog id="textDialog">
       <form method="dialog" class="dialog-card">

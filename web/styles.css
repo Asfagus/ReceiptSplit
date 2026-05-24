@@ -113,12 +113,42 @@ h2 {
   border: 1px solid var(--line);
 }
 
-.primary-action input {
+.primary-action input,
+.hidden-file-input,
+.toolbar-upload input {
   position: absolute;
   inline-size: 1px;
   block-size: 1px;
   opacity: 0;
   pointer-events: none;
+}
+
+.toolbar-upload {
+  min-height: 44px;
+  border-radius: 8px;
+  padding: 0 16px;
+  background: var(--panel);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.camera-preview {
+  width: 100%;
+  max-height: 60vh;
+  border-radius: 8px;
+  background: #000;
+  object-fit: cover;
+}
+
+.camera-card menu button:last-child {
+  background: var(--accent);
+  color: white;
 }
 
 .icon-button {
@@ -417,9 +447,5 @@ dialog::backdrop {
   .toolbar {
     display: grid;
     grid-template-columns: 1fr 1fr;
-  }
-
-  .primary-action {
-    grid-column: 1 / -1;
   }
 }
