@@ -4,7 +4,8 @@ const STORAGE_KEY = "receipt-split-pwa-state-v1";
 const state = {
   people: [],
   items: [],
-  memory: {}
+  memory: {},
+  version: APP_VERSION
 };
 
 const els = {
@@ -15,6 +16,9 @@ const els = {
   cameraPreview: document.querySelector("#cameraPreview"),
   capturePhotoButton: document.querySelector("#capturePhotoButton"),
   pasteTextButton: document.querySelector("#pasteTextButton"),
+  ocrSelect: document.querySelector("#ocrSelect"),
+  preprocessCheckbox: document.querySelector("#preprocessCheckbox"),
+  showConfidence: document.querySelector("#showConfidence"),
   addItemButton: document.querySelector("#addItemButton"),
   clearItemsButton: document.querySelector("#clearItemsButton"),
   saveHistoryButton: document.querySelector("#saveHistoryButton"),
@@ -73,6 +77,9 @@ function load() {
       state.items = saved.items || [];
       state.memory = saved.memory || {};
       state.version = saved.version || "1.0.0";
+          state.preprocess = saved.preprocess || false;
+          state.showConfidence = saved.showConfidence || false;
+      state.ocrEngine = saved.ocrEngine || "tesseract";
     } catch {
       localStorage.removeItem(STORAGE_KEY);
     }
@@ -89,6 +96,76 @@ function load() {
 function save() {
   state.version = APP_VERSION;
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+}
+
+function initOcrSelector() {
+  if (!els.ocrSelect) return;
+  els.ocrSelect.value = state.ocrEngine || "tesseract";
+  els.ocrSelect.addEventListener("change", () => {
+    state.ocrEngine = els.ocrSelect.value;
+    save();
+  });
+}
+
+function initPreprocessControls() {
+  if (els.preprocessCheckbox) {
+    els.preprocessCheckbox.checked = !!state.preprocess;
+    els.preprocessCheckbox.addEventListener("change", () => {
+      state.preprocess = !!els.preprocessCheckbox.checked;
+      save();
+    });
+  }
+  if (els.showConfidence) {
+    els.showConfidence.checked = !!state.showConfidence;
+    els.showConfidence.addEventListener("change", () => {
+      state.showConfidence = !!els.showConfidence.checked;
+      save();
+    });
+  }
+}
+
+async function preprocessFile(file) {
+  // load image into bitmap for fast drawing
+  try {
+    const bitmap = await createImageBitmap(file);
+    const maxDim = 1600;
+    let { width, height } = bitmap;
+    const scale = Math.min(1, maxDim / Math.max(width, height));
+    width = Math.round(width * scale);
+    height = Math.round(height * scale);
+
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext("2d");
+    ctx.drawImage(bitmap, 0, 0, width, height);
+
+    // simple contrast stretch + grayscale + global threshold
+    const img = ctx.getImageData(0, 0, width, height);
+    const data = img.data;
+    let sum = 0;
+    for (let i = 0; i < data.length; i += 4) {
+      const r = data[i], g = data[i + 1], b = data[i + 2];
+      const l = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+      sum += l;
+    }
+    const avg = sum / (data.length / 4);
+    // apply grayscale and threshold
+    for (let i = 0; i < data.length; i += 4) {
+      const r = data[i], g = data[i + 1], b = data[i + 2];
+      let l = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+      // contrast stretch around average
+      l = (l - avg) * 1.2 + avg;
+      const v = l > avg * 0.95 ? 255 : 0;
+      data[i] = data[i + 1] = data[i + 2] = v;
+    }
+    ctx.putImageData(img, 0, 0);
+
+    return await new Promise((resolve) => canvas.toBlob((b) => resolve(new File([b], file.name || "proc.jpg", { type: "image/jpeg" })), "image/jpeg", 0.9));
+  } catch (err) {
+    console.warn("Preprocess failed, using original file", err);
+    return file;
+  }
 }
 
 function setStatus(message, active = true, progress = null) {
@@ -356,14 +433,30 @@ async function scanImage(file) {
     setStatus("OCR is still loading. Try again in a few seconds.", false);
     return;
   }
+  const selected = state.ocrEngine || "tesseract";
+  let useFile = file;
+  if (state.preprocess) {
+    setStatus("Preprocessing image...", true, 0);
+    useFile = await preprocessFile(file) || file;
+  }
+  if (selected !== "tesseract") {
+    setStatus(`${selected} selected — not available in-browser. Using Tesseract fallback.`, true, 0);
+  } else {
+    setStatus("Reading receipt image...", true, 0);
+  }
 
-  setStatus("Reading receipt image...", true, 0);
   try {
-    const result = await recognizeReceiptText(file, (event) => {
+    const result = await recognizeReceiptText(selected, useFile, (event) => {
       if (event.status && typeof event.progress === "number") {
         setStatus(ocrStatusMessage(event.status), true, event.progress * 100);
       }
     });
+    if (state.showConfidence && result.words && result.words.length) {
+      // append confidences to the text area for review
+      const confLines = result.words.map((w) => `${w.text} [${Math.round((w.confidence||w.conf||0)*100)}]`).join(" \n");
+      els.receiptTextArea.value = `${result.text.trim()}\n\n--Words & confidences--\n${confLines}`;
+    }
+
     if (result.items.length === 0) {
       els.receiptTextArea.value = result.text.trim();
       els.textDialog.showModal();
@@ -377,7 +470,29 @@ async function scanImage(file) {
   }
 }
 
-async function recognizeReceiptText(file, onProgress) {
+async function recognizeReceiptText(engine, file, onProgress) {
+  // If EasyOCR is selected and a local server is available, POST the image
+  // to the server endpoint; otherwise fall back to Tesseract in-browser.
+  if (engine === "easyocr") {
+    try {
+      const form = new FormData();
+      form.append("file", file, file.name || "upload.jpg");
+      const resp = await fetch("/server/ocr", {
+        method: "POST",
+        body: form
+      });
+      if (!resp.ok) throw new Error(`Server OCR failed: ${resp.statusText}`);
+      const data = await resp.json();
+      const text = data.text || "";
+      const items = parseReceiptText(text);
+      return { text, items, words: data.words };
+    } catch (err) {
+      // fallback to Tesseract if server call fails
+      console.warn("EasyOCR server call failed, falling back to Tesseract:", err);
+    }
+  }
+
+  // Default in-browser Tesseract
   const result = await Tesseract.recognize(file, "eng", {
     logger: (event) => {
       if (onProgress) onProgress(event);
@@ -536,6 +651,7 @@ if ("serviceWorker" in navigator) {
 }
 
 load();
+initOcrSelector();
 els.versionLabel.textContent = `v${APP_VERSION}`;
 save();
 render();
