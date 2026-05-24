@@ -1,4 +1,4 @@
-const APP_VERSION = "1.2.4";
+const APP_VERSION = "1.2.5";
 const STORAGE_KEY = "receipt-split-pwa-state-v1";
 
 const state = {
