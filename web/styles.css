@@ -184,6 +184,12 @@ h2 {
   margin-bottom: 12px;
 }
 
+.section-title-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
 .pill {
   min-width: 30px;
   height: 26px;

@@ -1,4 +1,4 @@
-const APP_VERSION = "1.2.1";
+const APP_VERSION = "1.2.2";
 const STORAGE_KEY = "receipt-split-pwa-state-v1";
 
 const state = {
@@ -20,6 +20,7 @@ const els = {
   participantName: document.querySelector("#participantName"),
   participantsList: document.querySelector("#participantsList"),
   peopleCount: document.querySelector("#peopleCount"),
+  itemsCount: document.querySelector("#itemsCount"),
   itemsList: document.querySelector("#itemsList"),
   totalsList: document.querySelector("#totalsList"),
   textDialog: document.querySelector("#textDialog"),
@@ -199,6 +200,7 @@ function renderPeople() {
 }
 
 function renderItems() {
+  els.itemsCount.textContent = String(state.items.length);
   els.itemsList.replaceChildren();
 
   if (state.items.length === 0) {

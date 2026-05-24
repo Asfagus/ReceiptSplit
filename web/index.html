@@ -6,9 +6,9 @@
     <meta name="theme-color" content="#f7f4ed">
     <title>Receipt Split</title>
     <link rel="manifest" href="./manifest.webmanifest">
-    <link rel="stylesheet" href="./styles.css?v=1.2.1">
+    <link rel="stylesheet" href="./styles.css?v=1.2.2">
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js" defer></script>
-    <script src="./app.js?v=1.2.1" defer></script>
+    <script src="./app.js?v=1.2.2" defer></script>
   </head>
   <body>
     <main class="app-shell">
@@ -16,7 +16,7 @@
         <div>
           <p class="eyebrow">Private receipt splitter</p>
           <h1>Receipt Split</h1>
-          <p class="version-label" id="versionLabel">v1.2.1</p>
+          <p class="version-label" id="versionLabel">v1.2.2</p>
         </div>
         <button class="icon-button" id="installButton" type="button" title="Install app" hidden>
           <span aria-hidden="true">+</span>
@@ -52,7 +52,10 @@
 
         <section class="panel items-panel" aria-labelledby="itemsTitle">
           <div class="section-head">
-            <h2 id="itemsTitle">Items</h2>
+            <div class="section-title-group">
+              <h2 id="itemsTitle">Items</h2>
+              <span id="itemsCount" class="pill">0</span>
+            </div>
             <button id="clearItemsButton" class="text-button" type="button">Clear</button>
           </div>
           <div id="itemsList" class="items-list"></div>
