@@ -29,6 +29,22 @@
           Upload
           <input id="receiptUploadInput" type="file" accept="image/*">
         </label>
+        <label class="toolbar-select" for="ocrSelect">
+          OCR
+          <select id="ocrSelect">
+            <option value="tesseract">Tesseract (in-browser)</option>
+            <option value="paddleocr">PaddleOCR (server)</option>
+            <option value="easyocr">EasyOCR (server)</option>
+            <option value="trocr">TrOCR (server)</option>
+            <option value="ocrmypdf">OCRmyPDF (server/PDF)</option>
+          </select>
+        </label>
+        <label class="toolbar-checkbox">
+          <input id="preprocessCheckbox" type="checkbox"> Preprocess image
+        </label>
+        <label class="toolbar-checkbox">
+          <input id="showConfidence" type="checkbox"> Show confidences
+        </label>
         <input id="receiptCameraInput" class="hidden-file-input" type="file" accept="image/*" capture="environment">
         <button id="pasteTextButton" type="button">Paste text</button>
         <button id="addItemButton" type="button">Add item</button>
