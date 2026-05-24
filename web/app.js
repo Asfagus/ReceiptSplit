@@ -1,4 +1,4 @@
-const APP_VERSION = "1.2.3";
+const APP_VERSION = "1.2.4";
 const STORAGE_KEY = "receipt-split-pwa-state-v1";
 
 const state = {
@@ -20,6 +20,9 @@ const els = {
   saveHistoryButton: document.querySelector("#saveHistoryButton"),
   statusStrip: document.querySelector("#statusStrip"),
   statusText: document.querySelector("#statusText"),
+  progressTrack: document.querySelector("#progressTrack"),
+  progressFill: document.querySelector("#progressFill"),
+  progressLabel: document.querySelector("#progressLabel"),
   versionLabel: document.querySelector("#versionLabel"),
   participantForm: document.querySelector("#participantForm"),
   participantName: document.querySelector("#participantName"),
@@ -88,14 +91,35 @@ function save() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
 }
 
-function setStatus(message, active = true) {
+function setStatus(message, active = true, progress = null) {
   els.statusText.textContent = message;
   els.statusStrip.hidden = !message;
-  els.statusStrip.querySelector(".progress-dot").style.display = active ? "block" : "none";
+
+  const showBar = active && typeof progress === "number";
+  els.progressTrack.hidden = !showBar;
+  els.progressLabel.hidden = !showBar;
+
+  if (showBar) {
+    const pct = Math.max(0, Math.min(100, Math.round(progress)));
+    els.progressFill.style.width = `${pct}%`;
+    els.progressLabel.textContent = `${pct}%`;
+    els.progressTrack.setAttribute("aria-valuenow", String(pct));
+  }
 }
 
 function clearStatus() {
   setStatus("", false);
+}
+
+function ocrStatusMessage(status) {
+  const labels = {
+    "loading tesseract core": "Loading OCR engine",
+    "initializing tesseract": "Starting OCR",
+    "loading language traineddata": "Loading language data",
+    "initializing api": "Preparing scan",
+    "recognizing text": "Reading receipt"
+  };
+  return labels[status] || "Reading receipt";
 }
 
 function parseReceiptText(text) {
@@ -333,9 +357,13 @@ async function scanImage(file) {
     return;
   }
 
-  setStatus("Reading receipt image...");
+  setStatus("Reading receipt image...", true, 0);
   try {
-    const result = await recognizeBestReceiptText(file);
+    const result = await recognizeReceiptText(file, (event) => {
+      if (event.status && typeof event.progress === "number") {
+        setStatus(ocrStatusMessage(event.status), true, event.progress * 100);
+      }
+    });
     if (result.items.length === 0) {
       els.receiptTextArea.value = result.text.trim();
       els.textDialog.showModal();
@@ -349,110 +377,15 @@ async function scanImage(file) {
   }
 }
 
-async function recognizeBestReceiptText(file) {
-  const attempts = [
-    { label: "original", image: file },
-    { label: "rotated right", image: () => rotateImage(file, 90) },
-    { label: "rotated left", image: () => rotateImage(file, -90) },
-    { label: "upside down", image: () => rotateImage(file, 180) },
-    { label: "enhanced", image: () => enhanceImage(file, 0) },
-    { label: "enhanced rotated right", image: () => enhanceImage(file, 90) },
-    { label: "enhanced rotated left", image: () => enhanceImage(file, -90) }
-  ];
-  let best = { text: "", items: [] };
-
-  for (const attempt of attempts) {
-    setStatus(`Reading ${attempt.label}...`);
-    const image = typeof attempt.image === "function" ? await attempt.image() : attempt.image;
-    const result = await Tesseract.recognize(image, "eng", {
-      logger: (event) => {
-        if (event.status && typeof event.progress === "number") {
-          setStatus(`${attempt.label}: ${event.status} ${Math.round(event.progress * 100)}%`);
-        }
-      }
-    });
-    const text = result.data.text;
-    const items = parseReceiptText(text);
-    if (items.length > best.items.length) best = { text, items };
-  }
-
-  return best;
-}
-
-function rotateImage(file, degrees) {
-  return new Promise((resolve, reject) => {
-    const image = new Image();
-    const url = URL.createObjectURL(file);
-
-    image.onload = () => {
-      const canvas = document.createElement("canvas");
-      const quarterTurn = Math.abs(degrees) === 90;
-      canvas.width = quarterTurn ? image.height : image.width;
-      canvas.height = quarterTurn ? image.width : image.height;
-
-      const context = canvas.getContext("2d");
-      context.translate(canvas.width / 2, canvas.height / 2);
-      context.rotate((degrees * Math.PI) / 180);
-      context.drawImage(image, -image.width / 2, -image.height / 2);
-      URL.revokeObjectURL(url);
-      canvas.toBlob((blob) => {
-        if (blob) resolve(blob);
-        else reject(new Error("Could not prepare rotated image."));
-      }, "image/jpeg", 0.92);
-    };
-
-    image.onerror = () => {
-      URL.revokeObjectURL(url);
-      reject(new Error("Could not load image."));
-    };
-
-    image.src = url;
+async function recognizeReceiptText(file, onProgress) {
+  const result = await Tesseract.recognize(file, "eng", {
+    logger: (event) => {
+      if (onProgress) onProgress(event);
+    }
   });
-}
-
-function enhanceImage(file, degrees) {
-  return renderImage(file, degrees, (image, canvas, context) => {
-    const scale = Math.max(1.5, Math.min(2.5, 1800 / Math.max(image.width, image.height)));
-    const quarterTurn = Math.abs(degrees) === 90;
-    canvas.width = Math.round((quarterTurn ? image.height : image.width) * scale);
-    canvas.height = Math.round((quarterTurn ? image.width : image.height) * scale);
-
-    context.translate(canvas.width / 2, canvas.height / 2);
-    context.rotate((degrees * Math.PI) / 180);
-    context.filter = "grayscale(1) contrast(1.75) brightness(1.08)";
-    context.drawImage(
-      image,
-      (-image.width * scale) / 2,
-      (-image.height * scale) / 2,
-      image.width * scale,
-      image.height * scale
-    );
-  });
-}
-
-function renderImage(file, degrees, draw) {
-  return new Promise((resolve, reject) => {
-    const image = new Image();
-    const url = URL.createObjectURL(file);
-
-    image.onload = () => {
-      const canvas = document.createElement("canvas");
-      const context = canvas.getContext("2d");
-      draw(image, canvas, context);
-      URL.revokeObjectURL(url);
-      canvas.toBlob((blob) => {
-        if (blob) resolve(blob);
-        else reject(new Error("Could not prepare image."));
-      }, "image/jpeg", 0.95);
-    };
-
-    image.onerror = () => {
-      URL.revokeObjectURL(url);
-      reject(new Error("Could not load image."));
-    };
-
-    image.src = url;
-  });
+  const text = result.data.text;
+  const items = parseReceiptText(text);
+  return { text, items };
 }
 
 function handleReceiptFile(event) {

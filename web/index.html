@@ -6,9 +6,9 @@
     <meta name="theme-color" content="#f7f4ed">
     <title>Receipt Split</title>
     <link rel="manifest" href="./manifest.webmanifest">
-    <link rel="stylesheet" href="./styles.css?v=1.2.3">
+    <link rel="stylesheet" href="./styles.css?v=1.2.4">
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js" defer></script>
-    <script src="./app.js?v=1.2.3" defer></script>
+    <script src="./app.js?v=1.2.4" defer></script>
   </head>
   <body>
     <main class="app-shell">
@@ -16,7 +16,7 @@
         <div>
           <p class="eyebrow">Private receipt splitter</p>
           <h1>Receipt Split</h1>
-          <p class="version-label" id="versionLabel">v1.2.3</p>
+          <p class="version-label" id="versionLabel">v1.2.4</p>
         </div>
         <button class="icon-button" id="installButton" type="button" title="Install app" hidden>
           <span aria-hidden="true">+</span>
@@ -35,8 +35,21 @@
       </section>
 
       <section class="status-strip" id="statusStrip" hidden>
-        <div class="progress-dot" aria-hidden="true"></div>
-        <span id="statusText"></span>
+        <div class="status-row">
+          <span id="statusText"></span>
+          <span id="progressLabel" class="progress-label" hidden></span>
+        </div>
+        <div
+          class="progress-track"
+          id="progressTrack"
+          hidden
+          role="progressbar"
+          aria-valuemin="0"
+          aria-valuemax="100"
+          aria-valuenow="0"
+        >
+          <div class="progress-fill" id="progressFill"></div>
+        </div>
       </section>
 
       <section class="layout-grid">
